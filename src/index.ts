@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { sequelize } from './models';
 import authRoutes from './auth/routes/auth.routes';
+import attendanceRoutes from './Employee/routes/attendance.routes';
 
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
 
