@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { getMe } from '../services/attendanceService';
+import { toast } from 'react-toastify';
 
 const ProfilePage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -11,10 +12,11 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data } = await getMe();
-        setProfileData(data);
+        const { data: response } = await getMe();
+        setProfileData(response?.data || response);
       } catch (error) {
         console.error('Failed to fetch profile', error);
+        toast.error('Failed to load profile data');
       } finally {
         setLoading(false);
       }
@@ -47,7 +49,7 @@ const ProfilePage: React.FC = () => {
         <div className="profile-avatar">{initials}</div>
         <div className="profile-info">
           <h2>{userData?.name}</h2>
-          <p>{userData?.role === 'manager' ? 'Manager' : 'Employee'}</p>
+          <p>{userData?.role === 'manager' ? 'Manager' : 'Employee'} • {userData?.department || 'No Department'}</p>
         </div>
       </div>
 
@@ -61,6 +63,12 @@ const ProfilePage: React.FC = () => {
           <span className="profile-value">{userData?.email}</span>
         </div>
         <div className="profile-row">
+          <span className="profile-label">Department</span>
+          <span className="profile-value">
+            <span className="department-badge">{userData?.department || 'Not Assigned'}</span>
+          </span>
+        </div>
+        <div className="profile-row">
           <span className="profile-label">Role</span>
           <span className="profile-value">
             <span className={`status-badge ${userData?.role === 'manager' ? 'status-present' : 'status-late'}`}>
@@ -70,7 +78,7 @@ const ProfilePage: React.FC = () => {
         </div>
         <div className="profile-row">
           <span className="profile-label">Employee ID</span>
-          <span className="profile-value">EMP-{String(userData?.id).padStart(5, '0')}</span>
+          <span className="profile-value">{userData?.employeeId || 'Not Assigned'}</span>
         </div>
         <div className="profile-row">
           <span className="profile-label">Member Since</span>

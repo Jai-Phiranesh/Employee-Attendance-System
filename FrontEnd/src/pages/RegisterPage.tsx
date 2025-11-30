@@ -1,30 +1,39 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/attendanceService';
+import { toast } from 'react-toastify';
 
 const RegisterPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('employee');
+  const [department, setDepartment] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!name || !email || !password || !department) {
+      toast.warning('Please fill in all fields');
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast.warning('Password must be at least 6 characters');
+      return;
+    }
+    
     setLoading(true);
-    setError('');
-    setSuccess('');
     
     try {
-      await register({ name, email, password, role });
-      setSuccess('Registration successful! Redirecting to login...');
+      await register({ name, email, password, role, department });
+      toast.success('Registration successful! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (error: any) {
       console.error('Registration failed', error);
-      setError(error.response?.data?.message || 'Registration failed. Please try again.');
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -36,9 +45,6 @@ const RegisterPage: React.FC = () => {
         <div className="form-logo">📋</div>
         <h2>Create Account</h2>
         <p className="form-subtitle">Join our attendance system</p>
-        
-        {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
         
         <div className="form-group">
           <label htmlFor="name">Full Name</label>
@@ -74,6 +80,18 @@ const RegisterPage: React.FC = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="department">Department</label>
+          <input
+            id="department"
+            type="text"
+            placeholder="Enter your department (e.g., Engineering)"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            required
           />
         </div>
         

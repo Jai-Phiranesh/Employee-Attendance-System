@@ -7,6 +7,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import moment from 'moment';
 import { saveAs } from 'file-saver';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler);
 
@@ -23,10 +24,11 @@ const ManagerDashboard: React.FC = () => {
         getManagerDashboard(),
         getTeamSummary()
       ]);
-      setDashboardData(dashboardRes.data);
-      setTeamSummary(summaryRes.data);
+      setDashboardData(dashboardRes.data?.data || dashboardRes.data);
+      setTeamSummary(summaryRes.data?.data || summaryRes.data);
     } catch (error) {
       console.error('Failed to fetch manager dashboard', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -37,14 +39,20 @@ const ManagerDashboard: React.FC = () => {
   }, []);
 
   const handleExport = async () => {
+    if (exporting) {
+      toast.info('Export already in progress...');
+      return;
+    }
+    
     setExporting(true);
     try {
       const response = await exportCsv();
       const blob = new Blob([response.data], { type: 'text/csv' });
       saveAs(blob, `team_attendance_${moment().format('YYYY-MM-DD')}.csv`);
+      toast.success('📥 CSV exported successfully!');
     } catch (error) {
       console.error('Export failed', error);
-      alert('Failed to export data');
+      toast.error('Failed to export data. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -66,17 +74,28 @@ const ManagerDashboard: React.FC = () => {
   const absentToday = summary.absentToday || 0;
   const lateToday = summary.lateToday || 0;
 
-  // Team work duration bar chart
-  const teamWorkData = {
-    labels: dashboardData?.teamWorkDuration?.map((d: any) => d.name) || [],
-    datasets: [{
-      label: 'Total Work Hours',
-      data: dashboardData?.teamWorkDuration?.map((d: any) => parseFloat(d.totalWorkDuration) || 0) || [],
-      backgroundColor: 'rgba(79, 70, 229, 0.7)',
-      borderColor: 'rgb(79, 70, 229)',
-      borderWidth: 1,
-      borderRadius: 6,
-    }],
+  // Department-wise attendance chart
+  const departmentData = dashboardData?.departmentAttendance || [];
+  const departmentChartData = {
+    labels: departmentData.map((d: any) => d.department),
+    datasets: [
+      {
+        label: 'Present',
+        data: departmentData.map((d: any) => d.present),
+        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+        borderColor: 'rgb(16, 185, 129)',
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+      {
+        label: 'Absent',
+        data: departmentData.map((d: any) => d.absent),
+        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 1,
+        borderRadius: 6,
+      }
+    ],
   };
 
   // Attendance distribution doughnut chart
@@ -142,14 +161,16 @@ const ManagerDashboard: React.FC = () => {
     },
   };
 
-  const barOptions = {
+  const stackedBarOptions = {
     ...chartOptions,
     scales: {
-      y: {
+      x: { stacked: true },
+      y: { 
+        stacked: true,
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Hours'
+          text: 'Employees'
         }
       }
     }
@@ -258,12 +279,15 @@ const ManagerDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="chart-card full-width">
-        <h3>👥 Team Work Hours (Total)</h3>
-        <div className="chart-wrapper bar-chart">
-          <Bar data={teamWorkData} options={barOptions} />
+      {/* Department-wise Attendance */}
+      {departmentData.length > 0 && (
+        <div className="chart-card full-width">
+          <h3>🏢 Department-wise Attendance (Today)</h3>
+          <div className="chart-wrapper bar-chart">
+            <Bar data={departmentChartData} options={stackedBarOptions} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Attendance Table */}
       <div className="card" style={{ marginTop: '1.5rem' }}>
@@ -278,6 +302,7 @@ const ManagerDashboard: React.FC = () => {
             <thead>
               <tr>
                 <th>Employee</th>
+                <th>Department</th>
                 <th>Date</th>
                 <th>Check-in</th>
                 <th>Check-out</th>
@@ -302,6 +327,7 @@ const ManagerDashboard: React.FC = () => {
                           <span>{record.User?.name || 'Unknown'}</span>
                         </div>
                       </td>
+                      <td>{record.User?.department || 'N/A'}</td>
                       <td>{moment(record.date).format('MMM D, YYYY')}</td>
                       <td>{moment(record.checkInTime).format('h:mm A')}</td>
                       <td>{record.checkOutTime ? moment(record.checkOutTime).format('h:mm A') : '-'}</td>
@@ -316,7 +342,7 @@ const ManagerDashboard: React.FC = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center' }}>No attendance records</td>
+                  <td colSpan={7} style={{ textAlign: 'center' }}>No attendance records</td>
                 </tr>
               )}
             </tbody>

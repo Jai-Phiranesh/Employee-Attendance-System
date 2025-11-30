@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import { getEmployeeDashboard, checkIn, checkOut, getMySummary } from '../services/attendanceService';
-import { Doughnut, Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler } from 'chart.js';
 import moment from 'moment';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler);
+import { toast } from 'react-toastify';
 
 interface Summary {
+  month: string;
+  year: number;
   totalPresent: number;
   totalAbsent: number;
   totalLate: number;
@@ -21,7 +20,6 @@ const EmployeeDashboard: React.FC = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   const fetchDashboard = async () => {
     if (!user) {
@@ -33,10 +31,11 @@ const EmployeeDashboard: React.FC = () => {
         getEmployeeDashboard(),
         getMySummary()
       ]);
-      setDashboardData(dashboardRes.data);
-      setSummary(summaryRes.data);
+      setDashboardData(dashboardRes.data?.data || dashboardRes.data);
+      setSummary(summaryRes.data?.data || summaryRes.data);
     } catch (error) {
       console.error('Failed to fetch dashboard', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -50,20 +49,37 @@ const EmployeeDashboard: React.FC = () => {
     }
   }, []);
 
-  const showMessage = (type: string, text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
-  };
-
   const handleCheckIn = async () => {
+    if (actionLoading) {
+      toast.info('Please wait, processing...');
+      return;
+    }
+
+    // Check if already completed today's quota
+    const todayStatus = dashboardData?.today;
+    if (todayStatus?.checkInTime && todayStatus?.checkOutTime) {
+      toast.info('🎉 You have already completed your attendance for today!');
+      return;
+    }
+
+    if (todayStatus?.checkInTime) {
+      toast.warning('⚠️ You have already checked in today!');
+      return;;
+    }
+    
     setActionLoading(true);
     try {
-      await checkIn();
-      showMessage('success', '✓ Successfully checked in!');
+      const response = await checkIn();
+      const isLate = new Date().getHours() >= 9;
+      if (isLate) {
+        toast.warning('⏰ Checked in late! Time recorded.');
+      } else {
+        toast.success('✅ Successfully checked in on time!');
+      }
       fetchDashboard();
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Check-in failed. Please try again.';
-      showMessage('error', msg);
+      toast.error(msg);
       console.error('Check-in failed', error);
     } finally {
       setActionLoading(false);
@@ -71,14 +87,31 @@ const EmployeeDashboard: React.FC = () => {
   };
 
   const handleCheckOut = async () => {
+    if (actionLoading) {
+      toast.info('Please wait, processing...');
+      return;
+    }
+    
+    // Check if user has checked in first
+    const todayStatus = dashboardData?.today;
+    if (!todayStatus?.checkInTime) {
+      toast.error('❌ You must check in first before checking out!');
+      return;
+    }
+    
+    if (todayStatus?.checkOutTime) {
+      toast.info('🎉 You have already completed your attendance for today!');
+      return;
+    }
+    
     setActionLoading(true);
     try {
       await checkOut();
-      showMessage('success', '✓ Successfully checked out!');
+      toast.success('✅ Successfully checked out! Have a great day!');
       fetchDashboard();
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Check-out failed. Please try again.';
-      showMessage('error', msg);
+      toast.error(msg);
       console.error('Check-out failed', error);
     } finally {
       setActionLoading(false);
@@ -96,54 +129,6 @@ const EmployeeDashboard: React.FC = () => {
   const todayStatus = dashboardData?.today;
   const isCheckedIn = !!todayStatus?.checkInTime;
   const isCheckedOut = !!todayStatus?.checkOutTime;
-
-  // Doughnut chart for attendance overview
-  const attendanceOverviewData = {
-    labels: ['Present', 'Absent', 'Late'],
-    datasets: [{
-      data: [
-        summary?.totalPresent || 0,
-        summary?.totalAbsent || 0,
-        summary?.totalLate || 0
-      ],
-      backgroundColor: [
-        'rgba(16, 185, 129, 0.8)',
-        'rgba(239, 68, 68, 0.8)',
-        'rgba(245, 158, 11, 0.8)',
-      ],
-      borderColor: [
-        'rgb(16, 185, 129)',
-        'rgb(239, 68, 68)',
-        'rgb(245, 158, 11)',
-      ],
-      borderWidth: 2,
-    }],
-  };
-
-  // Line chart for work hours trend
-  const recentHistory = dashboardData?.attendanceHistory?.slice(0, 7).reverse() || [];
-  const workHoursTrendData = {
-    labels: recentHistory.map((r: any) => moment(r.date).format('MMM D')),
-    datasets: [{
-      label: 'Work Hours',
-      data: recentHistory.map((r: any) => parseFloat(r.workDuration) || 0),
-      fill: true,
-      backgroundColor: 'rgba(79, 70, 229, 0.1)',
-      borderColor: 'rgb(79, 70, 229)',
-      tension: 0.4,
-      pointBackgroundColor: 'rgb(79, 70, 229)',
-    }],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-      },
-    },
-  };
 
   const currentHour = new Date().getHours();
   const isLateCheckIn = currentHour >= 9;
@@ -165,13 +150,6 @@ const EmployeeDashboard: React.FC = () => {
           <li>✅ You must check-in before you can check-out</li>
         </ul>
       </div>
-
-      {/* Alert Message */}
-      {message && (
-        <div className={`alert alert-${message.type}`}>
-          {message.text}
-        </div>
-      )}
 
       {/* Today's Status Card */}
       <div className="today-status">
@@ -261,24 +239,8 @@ const EmployeeDashboard: React.FC = () => {
         <div className="stat-card">
           <div className="stat-icon hours">⏱</div>
           <div className="stat-content">
-            <h3>{summary?.totalWorkHours || '0'}</h3>
-            <p>Total Hours</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="charts-grid">
-        <div className="chart-card">
-          <h3>📊 Attendance Overview</h3>
-          <div className="chart-wrapper doughnut-chart">
-            <Doughnut data={attendanceOverviewData} options={chartOptions} />
-          </div>
-        </div>
-        <div className="chart-card">
-          <h3>📈 Work Hours (Last 7 Days)</h3>
-          <div className="chart-wrapper">
-            <Line data={workHoursTrendData} options={chartOptions} />
+            <h3>{summary?.totalWorkHours || '0'} hrs</h3>
+            <p>Hours in {summary?.month || 'This Month'}</p>
           </div>
         </div>
       </div>

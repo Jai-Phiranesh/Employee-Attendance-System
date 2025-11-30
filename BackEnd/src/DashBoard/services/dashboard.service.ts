@@ -143,7 +143,7 @@ class DashboardService {
     const allAttendance = await Attendance.findAll({
       include: [{ 
         model: User, 
-        attributes: ['id', 'name', 'email', 'role'],
+        attributes: ['id', 'name', 'email', 'role', 'department', 'employeeId'],
         where: { role: 'employee' }  // Only include employees
       }],
       order: [['date', 'DESC']],
@@ -161,27 +161,29 @@ class DashboardService {
       },
       include: [{ 
         model: User, 
-        attributes: ['id', 'name', 'email'],
+        attributes: ['id', 'name', 'email', 'department', 'employeeId'],
         where: { role: 'employee' }  // Only include employees
       }],
     });
 
     // Group by user for team work duration
-    const userWorkMap = new Map<number, { name: string; totalHours: number }>();
+    const userWorkMap = new Map<number, { name: string; totalHours: number; department: string }>();
     recentAttendances.forEach((att: any) => {
       const userId = att.userId;
       const userName = att.User?.name || 'Unknown';
+      const department = att.User?.department || 'Unknown';
       const hours = parseFloat(att.totalHours) || 0;
       
       if (userWorkMap.has(userId)) {
         userWorkMap.get(userId)!.totalHours += hours;
       } else {
-        userWorkMap.set(userId, { name: userName, totalHours: hours });
+        userWorkMap.set(userId, { name: userName, totalHours: hours, department });
       }
     });
 
     const teamWorkDuration = Array.from(userWorkMap.values()).map(u => ({
       name: u.name,
+      department: u.department,
       totalWorkDuration: u.totalHours.toFixed(2)
     }));
 
@@ -198,12 +200,45 @@ class DashboardService {
             id: { [Op.notIn]: presentUserIds },
             role: 'employee'  // Only employees
           },
-          attributes: ['id', 'name', 'email']
+          attributes: ['id', 'name', 'email', 'department']
         })
       : await User.findAll({ 
           where: { role: 'employee' },
-          attributes: ['id', 'name', 'email'] 
+          attributes: ['id', 'name', 'email', 'department'] 
         });
+
+    // 6. Department-wise attendance summary
+    const departmentMap = new Map<string, { present: number; total: number }>();
+    
+    // Get all employees grouped by department
+    const allEmployees = await User.findAll({
+      where: { role: 'employee' },
+      attributes: ['id', 'department'],
+      raw: true
+    }) as any[];
+    
+    allEmployees.forEach((emp: any) => {
+      const dept = emp.department || 'Unknown';
+      if (!departmentMap.has(dept)) {
+        departmentMap.set(dept, { present: 0, total: 0 });
+      }
+      departmentMap.get(dept)!.total++;
+    });
+    
+    // Count present by department
+    employeeAttendances.forEach((att: any) => {
+      const dept = att.User?.department || 'Unknown';
+      if (departmentMap.has(dept)) {
+        departmentMap.get(dept)!.present++;
+      }
+    });
+    
+    const departmentAttendance = Array.from(departmentMap.entries()).map(([dept, data]) => ({
+      department: dept,
+      present: data.present,
+      total: data.total,
+      absent: data.total - data.present
+    }));
 
     return {
       summary: {
@@ -215,6 +250,7 @@ class DashboardService {
       allAttendance,
       teamWorkDuration,
       absentEmployeesToday: absentEmployees,
+      departmentAttendance,
     };
   }
 

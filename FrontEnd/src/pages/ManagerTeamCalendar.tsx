@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAllAttendances, getTeamSummary } from '../services/attendanceService';
+import { getAllAttendances, getTeamSummary, getDepartments } from '../services/attendanceService';
 import moment from 'moment';
+import { toast } from 'react-toastify';
 
 interface AttendanceRecord {
   id: number;
@@ -12,34 +13,45 @@ interface AttendanceRecord {
     id: number;
     name: string;
     email: string;
+    department?: string;
   };
 }
 
 interface EmployeeData {
   id: number;
   name: string;
+  department: string;
   attendanceMap: Map<string, string>;
 }
 
 const ManagerTeamCalendar: React.FC = () => {
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<EmployeeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(moment());
   const [teamSummary, setTeamSummary] = useState<any>(null);
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [attendanceRes, summaryRes] = await Promise.all([
+        const [attendanceRes, summaryRes, deptRes] = await Promise.all([
           getAllAttendances(),
-          getTeamSummary()
+          getTeamSummary(),
+          getDepartments()
         ]);
-        setAttendances(attendanceRes.data);
-        setTeamSummary(summaryRes.data);
-        processEmployeeData(attendanceRes.data);
+        const attendanceData = attendanceRes.data?.data || attendanceRes.data;
+        const summaryData = summaryRes.data?.data || summaryRes.data;
+        const deptData = deptRes.data?.data || deptRes.data || [];
+        setAttendances(attendanceData);
+        setTeamSummary(summaryData);
+        setDepartments(deptData);
+        processEmployeeData(attendanceData);
       } catch (error) {
         console.error('Failed to fetch data', error);
+        toast.error('Failed to load calendar data');
       } finally {
         setLoading(false);
       }
@@ -69,6 +81,7 @@ const ManagerTeamCalendar: React.FC = () => {
         employeeMap.set(record.User.id, {
           id: record.User.id,
           name: record.User.name,
+          department: record.User.department || 'Unknown',
           attendanceMap: new Map()
         });
       }
@@ -78,8 +91,19 @@ const ManagerTeamCalendar: React.FC = () => {
       employee.attendanceMap.set(dateStr, getStatus(record));
     });
     
-    setEmployees(Array.from(employeeMap.values()));
+    const employeesList = Array.from(employeeMap.values());
+    setEmployees(employeesList);
+    setFilteredEmployees(employeesList);
   };
+
+  // Filter employees when department changes
+  useEffect(() => {
+    if (departmentFilter === 'all') {
+      setFilteredEmployees(employees);
+    } else {
+      setFilteredEmployees(employees.filter(emp => emp.department === departmentFilter));
+    }
+  }, [departmentFilter, employees]);
 
   const getDaysInMonth = (): moment.Moment[] => {
     const startOfMonth = currentMonth.clone().startOf('month');
@@ -109,6 +133,18 @@ const ManagerTeamCalendar: React.FC = () => {
     <div>
       <div className="page-header">
         <h2>📅 Team Calendar View</h2>
+        <div className="filter-inline">
+          <select 
+            value={departmentFilter} 
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="select-filter"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((dept: string) => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Summary Stats */}
@@ -116,8 +152,8 @@ const ManagerTeamCalendar: React.FC = () => {
         <div className="stat-card">
           <div className="stat-icon total">👥</div>
           <div className="stat-content">
-            <h3>{teamSummary?.totalEmployees || employees.length}</h3>
-            <p>Total Employees</p>
+            <h3>{filteredEmployees.length}</h3>
+            <p>Showing Employees</p>
           </div>
         </div>
         <div className="stat-card">
@@ -188,6 +224,7 @@ const ManagerTeamCalendar: React.FC = () => {
             <thead>
               <tr>
                 <th className="employee-column">Employee</th>
+                <th className="department-column">Dept</th>
                 {days.map(day => (
                   <th 
                     key={day.format('YYYY-MM-DD')} 
@@ -202,8 +239,8 @@ const ManagerTeamCalendar: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {employees.length > 0 ? (
-                employees.map(employee => (
+              {filteredEmployees.length > 0 ? (
+                filteredEmployees.map(employee => (
                   <tr key={employee.id}>
                     <td className="employee-column">
                       <div className="employee-info">
@@ -212,6 +249,9 @@ const ManagerTeamCalendar: React.FC = () => {
                         </div>
                         <span>{employee.name}</span>
                       </div>
+                    </td>
+                    <td className="department-column">
+                      <span className="dept-badge">{employee.department}</span>
                     </td>
                     {days.map(day => {
                       const dateStr = day.format('YYYY-MM-DD');
@@ -247,7 +287,7 @@ const ManagerTeamCalendar: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={days.length + 1} className="empty-state">
+                  <td colSpan={days.length + 2} className="empty-state">
                     <p>No employee data found</p>
                   </td>
                 </tr>

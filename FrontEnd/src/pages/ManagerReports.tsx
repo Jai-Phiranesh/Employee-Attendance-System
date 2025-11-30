@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getAllAttendances, getTeamSummary, exportCsv } from '../services/attendanceService';
+import { getAllAttendances, getTeamSummary, exportCsv, getDepartments } from '../services/attendanceService';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler } from 'chart.js';
 import moment from 'moment';
 import { saveAs } from 'file-saver';
+import { toast } from 'react-toastify';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler);
 
@@ -12,11 +13,12 @@ interface AttendanceRecord {
   date: string;
   checkInTime: string;
   checkOutTime: string | null;
-  workDuration: string;
+  totalHours: number | string;
   User: {
     id: number;
     name: string;
     email: string;
+    department?: string;
   };
 }
 
@@ -27,18 +29,25 @@ const ManagerReports: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [startDate, setStartDate] = useState(moment().subtract(30, 'days').format('YYYY-MM-DD'));
   const [endDate, setEndDate] = useState(moment().format('YYYY-MM-DD'));
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [teamSummary, setTeamSummary] = useState<any>(null);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [attendanceRes, summaryRes] = await Promise.all([
+        const [attendanceRes, summaryRes, deptRes] = await Promise.all([
           getAllAttendances(),
-          getTeamSummary()
+          getTeamSummary(),
+          getDepartments()
         ]);
-        setAttendances(attendanceRes.data);
-        setTeamSummary(summaryRes.data);
-        filterByDateRange(attendanceRes.data, startDate, endDate);
+        const attendanceData = attendanceRes.data?.data || attendanceRes.data;
+        const summaryData = summaryRes.data?.data || summaryRes.data;
+        const deptData = deptRes.data?.data || deptRes.data || [];
+        setAttendances(attendanceData);
+        setTeamSummary(summaryData);
+        setDepartments(deptData);
+        filterByDateRange(attendanceData, startDate, endDate, departmentFilter);
       } catch (error) {
         console.error('Failed to fetch data', error);
       } finally {
@@ -49,23 +58,34 @@ const ManagerReports: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    filterByDateRange(attendances, startDate, endDate);
-  }, [startDate, endDate, attendances]);
+    filterByDateRange(attendances, startDate, endDate, departmentFilter);
+  }, [startDate, endDate, departmentFilter, attendances]);
 
-  const filterByDateRange = (data: AttendanceRecord[], start: string, end: string) => {
-    const filtered = data.filter(a => {
+  const filterByDateRange = (data: AttendanceRecord[], start: string, end: string, dept: string) => {
+    let filtered = data.filter(a => {
       const date = moment(a.date);
       return date.isSameOrAfter(moment(start)) && date.isSameOrBefore(moment(end));
     });
+    
+    if (dept !== 'all') {
+      filtered = filtered.filter(a => a.User.department === dept);
+    }
+    
     setFilteredAttendances(filtered);
   };
 
   const getStatus = (record: AttendanceRecord): string => {
-    const checkInTime = moment(record.checkInTime);
-    const nineAM = moment(record.date).set({ hour: 9, minute: 0, second: 0 });
-    const duration = parseFloat(record.workDuration) || 0;
+    if (!record.checkInTime) return 'present';
     
-    if (checkInTime.isAfter(nineAM)) {
+    // Parse check-in time and get the hour
+    const checkInDate = new Date(record.checkInTime);
+    const checkInHour = checkInDate.getHours();
+    const checkInMinutes = checkInDate.getMinutes();
+    
+    const duration = parseFloat(String(record.totalHours)) || 0;
+    
+    // Late if checked in at or after 9:00 AM
+    if (checkInHour > 9 || (checkInHour === 9 && checkInMinutes > 0)) {
       if (duration < 4 && record.checkOutTime) {
         return 'half-day';
       }
@@ -75,14 +95,25 @@ const ManagerReports: React.FC = () => {
   };
 
   const handleExport = async () => {
+    if (exporting) {
+      toast.info('Export already in progress...');
+      return;
+    }
+    
+    if (filteredAttendances.length === 0) {
+      toast.warning('No data to export for the selected date range');
+      return;
+    }
+    
     setExporting(true);
     try {
       const response = await exportCsv();
       const blob = new Blob([response.data], { type: 'text/csv' });
       saveAs(blob, `team_attendance_${startDate}_to_${endDate}.csv`);
+      toast.success('📥 CSV exported successfully!');
     } catch (error) {
       console.error('Export failed', error);
-      alert('Failed to export data. Please try again.');
+      toast.error('Failed to export data. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -102,7 +133,7 @@ const ManagerReports: React.FC = () => {
       if (status === 'present') stats.present++;
       else if (status === 'late') stats.late++;
       else if (status === 'half-day') stats.halfDay++;
-      stats.totalHours += parseFloat(record.workDuration) || 0;
+      stats.totalHours += parseFloat(String(record.totalHours)) || 0;
     });
 
     return stats;
@@ -168,7 +199,7 @@ const ManagerReports: React.FC = () => {
     const employeeMap = new Map<string, number>();
     
     filteredAttendances.forEach(record => {
-      const hours = parseFloat(record.workDuration) || 0;
+      const hours = parseFloat(String(record.totalHours)) || 0;
       employeeMap.set(record.User.name, (employeeMap.get(record.User.name) || 0) + hours);
     });
     
@@ -243,7 +274,7 @@ const ManagerReports: React.FC = () => {
       {/* Date Range Selector */}
       <div className="card">
         <div className="card-header">
-          <span className="card-title">📅 Date Range</span>
+          <span className="card-title">📅 Filter Options</span>
         </div>
         <div className="filters">
           <div className="filter-group">
@@ -261,6 +292,15 @@ const ManagerReports: React.FC = () => {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
+          </div>
+          <div className="filter-group">
+            <label>Department</label>
+            <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+              <option value="all">All Departments</option>
+              {departments.map((dept: string) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
           </div>
           <div className="filter-group quick-filters">
             <label>Quick Select</label>
@@ -391,7 +431,7 @@ const ManagerReports: React.FC = () => {
                     </td>
                     <td>{moment(record.checkInTime).format('h:mm A')}</td>
                     <td>{record.checkOutTime ? moment(record.checkOutTime).format('h:mm A') : '-'}</td>
-                    <td>{record.workDuration || '-'} hrs</td>
+                    <td>{record.totalHours ? parseFloat(String(record.totalHours)).toFixed(2) : '-'} hrs</td>
                   </tr>
                 );
               })}

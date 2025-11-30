@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getMyHistory, getMySummary } from '../services/attendanceService';
 import moment from 'moment';
+import { toast } from 'react-toastify';
 
 interface AttendanceRecord {
   id: number;
@@ -33,10 +34,11 @@ const AttendanceHistory: React.FC = () => {
           getMyHistory(),
           getMySummary()
         ]);
-        setHistory(historyRes.data);
-        setSummary(summaryRes.data);
+        setHistory(historyRes.data?.data || historyRes.data);
+        setSummary(summaryRes.data?.data || summaryRes.data);
       } catch (error) {
         console.error('Failed to fetch attendance data', error);
+        toast.error('Failed to load attendance history');
       } finally {
         setLoading(false);
       }

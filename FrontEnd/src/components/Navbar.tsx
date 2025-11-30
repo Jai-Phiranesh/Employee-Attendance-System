@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../redux/store';
 import { logout } from '../redux/authSlice';
+import { toast } from 'react-toastify';
 
 const Navbar: React.FC = () => {
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
@@ -13,6 +14,7 @@ const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     dispatch(logout());
+    toast.info('👋 Logged out successfully!');
     navigate('/login');
   };
 

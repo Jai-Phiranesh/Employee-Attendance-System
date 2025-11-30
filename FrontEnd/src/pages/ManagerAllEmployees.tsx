@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAllAttendances, getEmployeeAttendance } from '../services/attendanceService';
+import { getAllAttendances, getEmployeeAttendance, getDepartments } from '../services/attendanceService';
 import moment from 'moment';
+import { toast } from 'react-toastify';
 
 interface AttendanceRecord {
   id: number;
@@ -12,6 +13,7 @@ interface AttendanceRecord {
     id: number;
     name: string;
     email: string;
+    department?: string;
   };
 }
 
@@ -23,25 +25,34 @@ const ManagerAllEmployees: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchAttendances = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await getAllAttendances();
-        setAttendances(data);
-        setFilteredAttendances(data);
+        const [attendanceRes, deptRes] = await Promise.all([
+          getAllAttendances(),
+          getDepartments()
+        ]);
+        const attendanceData = attendanceRes.data?.data || attendanceRes.data;
+        const deptData = deptRes.data?.data || deptRes.data || [];
+        setAttendances(attendanceData);
+        setFilteredAttendances(attendanceData);
+        setDepartments(deptData);
       } catch (error) {
-        console.error('Failed to fetch attendances', error);
+        console.error('Failed to fetch data', error);
+        toast.error('Failed to load attendance data');
       } finally {
         setLoading(false);
       }
     };
-    fetchAttendances();
+    fetchData();
   }, []);
 
   useEffect(() => {
     filterAttendances();
-  }, [searchTerm, startDate, endDate, statusFilter, attendances]);
+  }, [searchTerm, startDate, endDate, statusFilter, departmentFilter, attendances]);
 
   const getStatus = (record: AttendanceRecord): string => {
     const checkInTime = moment(record.checkInTime);
@@ -81,6 +92,11 @@ const ManagerAllEmployees: React.FC = () => {
       filtered = filtered.filter(a => getStatus(a) === statusFilter);
     }
 
+    // Filter by department
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(a => a.User.department === departmentFilter);
+    }
+
     setFilteredAttendances(filtered);
   };
 
@@ -89,6 +105,7 @@ const ManagerAllEmployees: React.FC = () => {
     setStartDate('');
     setEndDate('');
     setStatusFilter('all');
+    setDepartmentFilter('all');
   };
 
   // Get unique employees for summary
@@ -156,6 +173,15 @@ const ManagerAllEmployees: React.FC = () => {
               <option value="half-day">Half Day</option>
             </select>
           </div>
+          <div className="filter-group">
+            <label>Department</label>
+            <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+              <option value="all">All Departments</option>
+              {departments.map((dept: string) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -165,7 +191,7 @@ const ManagerAllEmployees: React.FC = () => {
           <thead>
             <tr>
               <th>Employee</th>
-              <th>Email</th>
+              <th>Department</th>
               <th>Date</th>
               <th>Status</th>
               <th>Check-in</th>
@@ -187,7 +213,7 @@ const ManagerAllEmployees: React.FC = () => {
                         <span>{record.User.name}</span>
                       </div>
                     </td>
-                    <td>{record.User.email}</td>
+                    <td>{record.User.department || 'N/A'}</td>
                     <td>{moment(record.date).format('MMM D, YYYY')}</td>
                     <td>
                       <span className={`status-badge status-${status}`}>

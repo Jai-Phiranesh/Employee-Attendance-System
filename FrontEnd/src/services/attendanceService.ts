@@ -14,6 +14,7 @@ export const getToday = () => api.get('/attendance/today');
 
 // Attendance (Manager)
 export const getAllAttendances = () => api.get('/attendance/all');
+export const getDepartments = () => api.get('/attendance/departments');
 export const getEmployeeAttendance = (id: number) => api.get(`/attendance/employee/${id}`);
 export const getTeamSummary = () => api.get('/attendance/summary');
 export const exportCsv = () => api.get('/attendance/export', { responseType: 'blob' });

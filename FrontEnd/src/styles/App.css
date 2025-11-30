@@ -1319,6 +1319,48 @@ form button[type="submit"] {
   background: linear-gradient(135deg, #059669 0%, #10b981 100%);
 }
 
+/* ===== Department Styles ===== */
+.dept-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.department-column {
+  min-width: 80px;
+  max-width: 100px;
+  text-align: center;
+}
+
+.filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select-filter {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.select-filter:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
 /* ===== Mobile Responsive Updates ===== */
 @media (max-width: 768px) {
   nav {
@@ -1380,5 +1422,18 @@ form button[type="submit"] {
   .calendar-legend {
     gap: 1rem;
     justify-content: center;
+  }
+  
+  .filter-inline {
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+  
+  .select-filter {
+    width: 100%;
+  }
+  
+  .department-column {
+    display: none;
   }
 }

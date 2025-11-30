@@ -7,7 +7,7 @@ class ManagerAttendanceService {
     return await Attendance.findAll({
       include: [{ 
         model: User, 
-        attributes: ['id', 'name', 'email'],
+        attributes: ['id', 'name', 'email', 'department', 'employeeId'],
         where: { role: 'employee' }  // Only include employees, exclude managers
       }],
       order: [['date', 'DESC']],
@@ -17,7 +17,7 @@ class ManagerAttendanceService {
   async getEmployeeAttendance(employeeId: number) {
     return await Attendance.findAll({
       where: { userId: employeeId },
-      include: [{ model: User, attributes: ['id', 'name', 'email'] }],
+      include: [{ model: User, attributes: ['id', 'name', 'email', 'department', 'employeeId'] }],
       order: [['date', 'DESC']],
     });
   }
@@ -38,7 +38,7 @@ class ManagerAttendanceService {
     // Get today's attendance for employees only
     const todayAttendances = await Attendance.findAll({
       where: { date: todayStr },
-      include: [{ model: User, attributes: ['id', 'role'] }]
+      include: [{ model: User, attributes: ['id', 'role', 'department'] }]
     }) as any[];
     
     const employeeAttendances = todayAttendances.filter((att: any) => att.User?.role === 'employee');
@@ -136,6 +136,23 @@ class ManagerAttendanceService {
     });
 
     return status;
+  }
+
+  // Get all unique departments from database
+  async getAllDepartments() {
+    const users = await User.findAll({
+      attributes: ['department'],
+      group: ['department'],
+      raw: true
+    }) as any[];
+    
+    // Extract unique departments and filter out empty/null values
+    const departments = users
+      .map((u: any) => u.department)
+      .filter((dept: string | null) => dept && dept.trim() !== '')
+      .sort();
+    
+    return departments;
   }
 }
 
