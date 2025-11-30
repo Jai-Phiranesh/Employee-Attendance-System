@@ -1,5 +1,27 @@
 # Employee Attendance System
 
+---
+
+## 🚀 LIVE DEMO
+
+### 🌐 **[CLICK HERE TO ACCESS THE APPLICATION](https://employee-attendance-system-1-mhl2.onrender.com/)**
+
+| | URL |
+|---|---|
+| **🖥️ Frontend** | https://employee-attendance-system-1-mhl2.onrender.com/ |
+| **⚙️ Backend API** | https://employee-attendance-system-sms5.onrender.com/api |
+
+### 📝 Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Manager** | `admin@company.com` | `admin123` |
+| **Employee** | Register a new account | - |
+
+> **⚠️ Note:** The application is hosted on Render's free tier. The server may take 30-60 seconds to wake up on first access.
+
+---
+
 A full-stack Employee Attendance Management System built with React, Node.js, Express, and PostgreSQL.
 
 ## 📋 Features
