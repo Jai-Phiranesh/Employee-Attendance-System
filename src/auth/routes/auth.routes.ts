@@ -10,6 +10,7 @@ const router = Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/manager/register', authController.registerManager);
 router.get('/me', authMiddleware, authController.getMe);
 
 export default router;

@@ -5,8 +5,8 @@ import { sequelize } from './models';
 import authRoutes from './auth/routes/auth.routes';
 import attendanceRoutes from './Employee/routes/attendance.routes';
 import { managerAttendanceRoutes } from './Manager/routes/attendance.routes';
-import { managerAuthRoutes } from './Manager/auth/routes/auth.routes';
-import { dashboardRoutes } from './Dashboard/routes/dashboard.routes';
+import { dashboardRoutes } from './DashBoard/routes/dashboard.routes';
+
 
 const app = express();
 
@@ -15,9 +15,9 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
-app.use('/api/manager/attendance', managerAttendanceRoutes);
-app.use('/api/manager/auth', managerAuthRoutes);
+app.use('/api/attendance', managerAttendanceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 5000;
 
@@ -27,6 +27,9 @@ async function start() {
     try {
       await sequelize.authenticate();
       console.log('Database connected!');
+      // Sync database tables
+      await sequelize.sync({ alter: true });
+      console.log('Database synced!');
     } catch (error) {
       console.error('Unable to connect to the database:', error);
     }

@@ -8,17 +8,35 @@ import jwt from 'jsonwebtoken';
 import { User } from '../../models';
 
 const register = async (userData: any) => {
-  const { name, email, password, role, employeeId, department } = userData;
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await (User as any).create({
-    name,
-    email,
-    password: hashedPassword,
-    role,
-    employeeId,
-    department,
-  });
-  return user;
+  try {
+    const { name, email, password, role, employeeId, department } = userData;
+    
+    // Check if user already exists
+    const existingUser = await (User as any).findOne({ where: { email } });
+    if (existingUser) {
+      throw new Error('Email already exists. Please use a different email.');
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await (User as any).create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      employeeId,
+      department,
+    });
+    return user;
+  } catch (error: any) {
+    // Handle Sequelize validation errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      throw new Error('Email already exists. Please use a different email.');
+    }
+    if (error.name === 'SequelizeValidationError') {
+      throw new Error(error.errors.map((e: any) => e.message).join(', '));
+    }
+    throw error;
+  }
 };
 
 const login = async (email: string, password: string) => {

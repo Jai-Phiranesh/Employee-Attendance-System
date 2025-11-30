@@ -7,7 +7,21 @@ import authService from '../services/auth.service';
 
 const register = async (req: Request, res: Response) => {
   try {
-    const user = await authService.register(req.body as any);
+    console.log('Registration request received:', { ...req.body, password: '[HIDDEN]' });
+    const { name, email, password, role } = req.body;
+    // Allow role to be 'employee' or 'manager', default to 'employee'
+    const userRole = role === 'manager' ? 'manager' : 'employee';
+    const user = await authService.register({ name, email, password, role: userRole });
+    res.status(201).json(user);
+  } catch (error: any) {
+    console.error('Registration error:', error.message);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+const registerManager = async (req: Request, res: Response) => {
+  try {
+    const user = await authService.register({ ...req.body, role: 'manager' });
     res.status(201).json(user);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
@@ -36,4 +50,4 @@ const getMe = async (req: Request, res: Response) => {
   }
 };
 
-export default { register, login, getMe };
+export default { register, login, getMe, registerManager };
