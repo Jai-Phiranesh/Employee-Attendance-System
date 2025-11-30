@@ -1,30 +1,51 @@
 import { Sequelize, DataTypes, Model, Optional } from 'sequelize';
 import 'dotenv/config';
 
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_USER = process.env.DB_USER || 'postgres';
-const DB_PASS = process.env.DB_PASSWORD || 'Jai@123';
-const DB_NAME = process.env.DB_NAME || 'Employee_Attendance_System';
-const DB_PORT = process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432;
+// Support DATABASE_URL (Render provides this) or individual env vars
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Enable SSL for production (Render, Supabase, etc.)
-const isProduction = process.env.NODE_ENV === 'production' || 
-                     DB_HOST.includes('render.com') || 
-                     DB_HOST.includes('supabase.co') ||
-                     DB_HOST !== 'localhost';
+let sequelize: Sequelize;
 
-export const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
-  host: DB_HOST,
-  port: DB_PORT,
-  dialect: 'postgres',
-  logging: false,
-  dialectOptions: isProduction ? {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
+if (DATABASE_URL) {
+  // Use DATABASE_URL if provided (Render PostgreSQL)
+  sequelize = new Sequelize(DATABASE_URL, {
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
     }
-  } : {}
-});
+  });
+} else {
+  // Fallback to individual environment variables (local development)
+  const DB_HOST = process.env.DB_HOST || 'localhost';
+  const DB_USER = process.env.DB_USER || 'postgres';
+  const DB_PASS = process.env.DB_PASSWORD || 'Jai@123';
+  const DB_NAME = process.env.DB_NAME || 'Employee_Attendance_System';
+  const DB_PORT = process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432;
+
+  const isProduction = process.env.NODE_ENV === 'production' || 
+                       DB_HOST.includes('render.com') || 
+                       DB_HOST.includes('supabase.co') ||
+                       DB_HOST !== 'localhost';
+
+  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
+    host: DB_HOST,
+    port: DB_PORT,
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: isProduction ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    } : {}
+  });
+}
+
+export { sequelize };
 
 interface UserAttributes {
   id: number;
