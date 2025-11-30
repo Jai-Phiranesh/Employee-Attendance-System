@@ -4,6 +4,16 @@ import 'dotenv/config';
 // Support DATABASE_URL (Render provides this) or individual env vars
 const DATABASE_URL = process.env.DATABASE_URL;
 
+console.log('----------------------------------------');
+console.log('Database Configuration Check:');
+console.log('DATABASE_URL provided:', !!DATABASE_URL);
+if (!DATABASE_URL) {
+  console.log('DB_HOST:', process.env.DB_HOST);
+  console.log('DB_USER:', process.env.DB_USER);
+  console.log('DB_NAME:', process.env.DB_NAME);
+}
+console.log('----------------------------------------');
+
 let sequelize: Sequelize;
 
 if (DATABASE_URL) {
