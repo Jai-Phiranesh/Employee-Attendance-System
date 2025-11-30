@@ -7,11 +7,23 @@ const DB_PASS = process.env.DB_PASSWORD || 'Jai@123';
 const DB_NAME = process.env.DB_NAME || 'Employee_Attendance_System';
 const DB_PORT = process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432;
 
+// Enable SSL for production (Render, Supabase, etc.)
+const isProduction = process.env.NODE_ENV === 'production' || 
+                     DB_HOST.includes('render.com') || 
+                     DB_HOST.includes('supabase.co') ||
+                     DB_HOST !== 'localhost';
+
 export const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
   host: DB_HOST,
   port: DB_PORT,
   dialect: 'postgres',
   logging: false,
+  dialectOptions: isProduction ? {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  } : {}
 });
 
 interface UserAttributes {
