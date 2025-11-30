@@ -4,12 +4,9 @@
 
 ## 🚀 LIVE DEMO
 
-### 🌐 **[CLICK HERE TO ACCESS THE APPLICATION](https://employee-attendance-system-1-mhl2.onrender.com/)**
+<h2>🌐 <a href="https://employee-attendance-system-1-mhl2.onrender.com/">👉 CLICK HERE TO ACCESS THE APPLICATION 👈</a></h2>
 
-| | URL |
-|---|---|
-| **🖥️ Frontend** | https://employee-attendance-system-1-mhl2.onrender.com/ |
-| **⚙️ Backend API** | https://employee-attendance-system-sms5.onrender.com/api |
+### 🔗 Preview URL: https://employee-attendance-system-1-mhl2.onrender.com/
 
 ### 📝 Demo Credentials
 
