@@ -8,13 +8,6 @@
 
 ### 🔗 Preview URL: https://employee-attendance-system-1-mhl2.onrender.com/
 
-### 📝 Demo Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| **Manager** | `admin@company.com` | `admin123` |
-| **Employee** | Register a new account | - |
-
 > **⚠️ Note:** The application is hosted on Render's free tier. The server may take 30-60 seconds to wake up on first access.
 
 ---
